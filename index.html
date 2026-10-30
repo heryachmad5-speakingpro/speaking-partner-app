@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI English Speaking Partner Pro</title>
+    <style>
+        :root {
+            --bg-color: #0f172a; --card-bg: #1e293b; --accent: #38bdf8;
+            --text-main: #f8fafc; --text-muted: #94a3b8; --danger: #f43f5e;
+            --success: #10b981; --warning: #f59e0b;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-color); color: var(--text-main);
+            margin: 0; padding: 0; display: flex; flex-direction: column;
+            height: 100vh; max-width: 600px; margin: 0 auto; user-select: none;
+        }
+        header {
+            padding: 10px 15px; background: var(--card-bg); text-align: center;
+            border-bottom: 1px solid #334155; font-weight: bold;
+            display: flex; flex-direction: column; gap: 8px;
+        }
+        .header-title { display: flex; justify-content: space-between; align-items: center; }
+        .btn-group { display: flex; gap: 5px; }
+        .icon-btn { background: #334155; border: none; color: white; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
+        .clear-btn { background: var(--danger); }
+        .sheet-btn { background: #0284c7; border: none; color: white; padding: 6px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; text-decoration: none; display: block; }
+        
+        #chat-container {
+            flex: 1; overflow-y: auto; padding: 15px; display: flex;
+            flex-direction: column; gap: 15px;
+        }
+        .message {
+            max-width: 85%; padding: 12px 16px; border-radius: 16px;
+            line-height: 1.5; font-size: 0.95rem; word-wrap: break-word;
+        }
+        .user-msg { background: #0284c7; align-self: flex-end; border-bottom-right-radius: 4px; }
+        .ai-msg { background: var(--card-bg); align-self: flex-start; border-bottom-left-radius: 4px; border: 1px solid #334155; }
+        
+        .score-badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; margin-bottom: 8px; border: 1px solid; }
+        .score-good { background: rgba(16, 185, 129, 0.1); color: #34d399; border-color: #34d399; }
+        .score-avg { background: rgba(245, 158, 11, 0.1); color: #fbbf24; border-color: #fbbf24; }
+        
+        .repeat-box { background: rgba(245, 158, 11, 0.15); border: 1px dashed var(--warning); padding: 10px; border-radius: 8px; font-size: 0.9rem; margin-top: 8px; color: #fde047; }
+        .correction-box { background: rgba(244, 63, 94, 0.1); border-left: 3px solid var(--danger); padding: 5px 10px; font-size: 0.85rem; margin: 8px 0; color: #fda4af; }
+        .vocab-btn { margin-top: 8px; background: #047857; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; width: 100%; text-align: left; }
+        
+        #controls-container {
+            padding: 15px; background: var(--card-bg); border-top: 1px solid #334155;
+            display: flex; flex-direction: column; gap: 10px;
+        }
+        #status { font-size: 0.85rem; color: var(--text-muted); text-align: center; }
+        .input-row { display: flex; gap: 10px; align-items: center; }
+        #text-input { flex: 1; padding: 12px; border-radius: 20px; border: 1px solid #475569; background: #0f172a; color: white; font-size: 0.95rem; }
+        .send-btn { background: var(--accent); border: none; padding: 12px 16px; border-radius: 20px; font-weight: bold; cursor: pointer; color: #0f172a; }
+        .send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .mic-btn { width: 50px; height: 50px; border-radius: 50%; background: var(--accent); border: none; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .mic-btn.recording { background: var(--danger); animation: pulse 1.5s infinite; }
+        
+        .handsfree-bar { display: flex; justify-content: space-between; align-items: center; background: #0f172a; padding: 8px 12px; border-radius: 10px; font-size: 0.85rem; }
+        .lock-btn { background: #475569; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; display: none; }
+
+        /* OVERLAY MODAL SETTINGS */
+        #settings-modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.95); z-index: 10000; flex-direction: column;
+            padding: 20px; box-sizing: border-box; overflow-y: auto;
+        }
+        #settings-modal.active { display: flex; }
+        .setting-group { margin-bottom: 15px; }
+        .setting-group label { display: block; font-size: 0.85rem; color: var(--accent); margin-bottom: 5px; }
+        .setting-group input, .setting-group select {
+            width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #475569;
+            background: #1e293b; color: white; box-sizing: border-box; font-size: 0.9rem;
+        }
+        .save-settings-btn { background: var(--success); color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+
+        /* OVERLAY KUNCI LAYAR */
+        #pocket-lock-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000000; z-index: 9999; flex-direction: column; justify-content: center;
+            align-items: center; color: #334155; text-align: center; padding: 20px; box-sizing: border-box;
+        }
+        #pocket-lock-overlay.active { display: flex; }
+
+        .switch { position: relative; display: inline-block; width: 40px; height: 22px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #475569; transition: .4s; border-radius: 22px; }
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--success); }
+        input:checked + .slider:before { transform: translateX(18px); }
+
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(244, 63, 94, 0); } }
+    </style>
+</head>
+<body>
+
+    <div id="settings-modal">
+        <h3 style="margin-top:0;">⚙️ Pengaturan Data Sensitif</h3>
+        <p style="font-size:0.8rem; color:var(--text-muted);">Data ini hanya tersimpan lokal di browser kamu.</p>
+        
+        <div class="setting-group">
+            <label>API Key Gemini (Wajib)</label>
+            <input type="password" id="input-api-key" placeholder="Paste API Key Gemini disini...">
+        </div>
+        <div class="setting-group">
+            <label>Level Bahasa Inggris</label>
+            <select id="input-level">
+                <option value="Beginner (A1-A2)">Beginner (A1-A2)</option>
+                <option value="Intermediate (B1-B2)" selected>Intermediate (B1-B2)</option>
+                <option value="Advanced (C1-C2)">Advanced (C1-C2)</option>
+            </select>
+        </div>
+        <div class="setting-group">
+            <label>URL Google Apps Script (Opsional)</label>
+            <input type="text" id="input-script-url" placeholder="https://script.google.com/macros/s/...">
+        </div>
+        <div class="setting-group">
+            <label>URL Google Sheets (Opsional)</label>
+            <input type="text" id="input-sheets-url" placeholder="https://docs.google.com/spreadsheets/d/...">
+        </div>
+        <div class="setting-group">
+            <label>ElevenLabs API Key (Opsional - Voice)</label>
+            <input type="password" id="input-eleven-key" placeholder="Paste ElevenLabs Key (opsional)">
+        </div>
+        <!-- [PERBAIKAN 5]: Voice ID dinamis, tidak lagi hardcoded -->
+        <div class="setting-group">
+            <label>ElevenLabs Voice ID (Opsional)</label>
+            <input type="text" id="input-voice-id" placeholder="Default: 21m00Tcm4TlvDq8ikWAM">
+        </div>
+
+        <button class="save-settings-btn" onclick="saveSettings()">Simpan & Tutup</button>
+    </div>
+
+    <div id="pocket-lock-overlay" onclick="handleOverlayClick()">
+        <div style="font-size: 3rem; margin-bottom: 10px;">🔒</div>
+        <p style="color: #64748b; font-size: 0.9rem;">Mode Tas Aktif (Layar Terkunci)</p>
+        <p style="color: #475569; font-size: 0.75rem;">Ketuk layar 3x dengan cepat untuk membuka kunci</p>
+    </div>
+
+    <header>
+        <div class="header-title">
+            <span>🎙️ Speaking Partner Pro</span>
+            <div class="btn-group">
+                <button class="icon-btn" onclick="toggleSettingsModal()">⚙️ Key</button>
+                <button class="icon-btn clear-btn" onclick="clearHistory()">Reset</button>
+            </div>
+        </div>
+        <a id="sheet-link" href="#" target="_blank" class="sheet-btn">📊 Lihat Koleksi Flashcard (Sheets)</a>
+    </header>
+
+    <div id="chat-container"></div>
+
+    <div id="controls-container">
+        <div class="handsfree-bar">
+            <span>🚲 Mode Hands-Free</span>
+            <button id="lock-screen-btn" class="lock-btn" onclick="activatePocketLock()">🔒 Kunci Layar</button>
+            <label class="switch">
+                <input type="checkbox" id="handsfree-toggle" onchange="toggleHandsFree(this)">
+                <span class="slider"></span>
+            </label>
+        </div>
+        <div id="status">Pilih mik untuk bicara, atau ketik pesan...</div>
+        <div class="input-row">
+            <input type="text" id="text-input" placeholder="Type message..." onkeypress="handleEnter(event)">
+            <button class="send-btn" id="send-btn" onclick="sendText()">Kirim</button>
+            <button id="mic-btn" class="mic-btn" onclick="toggleListening()">🎤</button>
+        </div>
+    </div>
+
+    <script>
+        let apiKey = localStorage.getItem("app_gemini_key") || "";
+        let sheetAppsScriptUrl = localStorage.getItem("app_script_url") || "";
+        let googleSheetUrl = localStorage.getItem("app_sheets_url") || "#";
+        let userEnglishLevel = localStorage.getItem("app_user_level") || "Intermediate (B1-B2)";
+        let elevenLabsApiKey = localStorage.getItem("app_eleven_key") || "";
+        // [PERBAIKAN 5]: Mengambil Voice ID dari Local Storage
+        let voiceId = localStorage.getItem("app_voice_id") || "21m00Tcm4TlvDq8ikWAM"; 
+
+        let chatHistory = [];
+        let isHandsFree = false;
+        let wakeLock = null;
+        let clickCount = 0;
+        let clickTimer = null;
+        let pendingRepeatSentence = null;
+
+        let speechTimeout = null;
+        let isProcessing = false;
+
+        const topicPool = [
+            "discussing plans for a weekend trip",
+            "sharing thoughts on daily habits and fitness",
+            "talking about work-life balance and productivity",
+            "ordering coffee or food at a local cafe",
+            "talking about favorite movies, tech, or hobbies"
+        ];
+
+        window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognition;
+        let isRecording = false;
+
+        window.onload = () => {
+            loadSettingsInputs();
+            document.getElementById("sheet-link").href = googleSheetUrl;
+
+            const savedHistory = localStorage.getItem("chatHistory");
+            
+            if (!apiKey) {
+                toggleSettingsModal();
+            } else if (savedHistory) {
+                // [PERBAIKAN 2]: State Management. Parse dari history murni, bukan me-load HTML UI statis.
+                chatHistory = JSON.parse(savedHistory);
+                renderChatHistory();
+            } else {
+                initSession();
+            }
+        };
+
+        function toggleSettingsModal() { document.getElementById("settings-modal").classList.toggle("active"); }
+
+        function loadSettingsInputs() {
+            document.getElementById("input-api-key").value = apiKey;
+            document.getElementById("input-script-url").value = sheetAppsScriptUrl;
+            document.getElementById("input-sheets-url").value = googleSheetUrl === "#" ? "" : googleSheetUrl;
+            document.getElementById("input-level").value = userEnglishLevel;
+            document.getElementById("input-eleven-key").value = elevenLabsApiKey;
+            document.getElementById("input-voice-id").value = voiceId;
+        }
+
+        function saveSettings() {
+            apiKey = document.getElementById("input-api-key").value.trim();
+            sheetAppsScriptUrl = document.getElementById("input-script-url").value.trim();
+            googleSheetUrl = document.getElementById("input-sheets-url").value.trim() || "#";
+            userEnglishLevel = document.getElementById("input-level").value;
+            elevenLabsApiKey = document.getElementById("input-eleven-key").value.trim();
+            
+            let vIdInput = document.getElementById("input-voice-id").value.trim();
+            voiceId = vIdInput !== "" ? vIdInput : "21m00Tcm4TlvDq8ikWAM";
+
+            localStorage.setItem("app_gemini_key", apiKey);
+            localStorage.setItem("app_script_url", sheetAppsScriptUrl);
+            localStorage.setItem("app_sheets_url", googleSheetUrl);
+            localStorage.setItem("app_user_level", userEnglishLevel);
+            localStorage.setItem("app_eleven_key", elevenLabsApiKey);
+            localStorage.setItem("app_voice_id", voiceId);
+
+            document.getElementById("sheet-link").href = googleSheetUrl;
+            toggleSettingsModal();
+
+            if (apiKey && chatHistory.length === 0) initSession();
+        }
+
+        // [PERBAIKAN 2]: Fungsi baru untuk me-render ulang elemen HTML secara dinamis dari array murni.
+        function renderChatHistory() {
+            document.getElementById("chat-container").innerHTML = "";
+            let lastUserMsg = "";
+            
+            chatHistory.forEach((msg, index) => {
+                let text = msg.parts[0].text;
+                if (msg.role === "user") {
+                    let cleanText = text.replace(/\[SYSTEM NOTE:.*?\]/g, '').trim();
+                    appendUserMessage(cleanText, false); // false = jangan save to local saat merender ulang
+                    lastUserMsg = cleanText;
+                } else if (msg.role === "model") {
+                    try {
+                        let cleanJson = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+                        let parsedData = JSON.parse(cleanJson);
+                        let isFirst = (index === 1); 
+                        appendAIMessage(parsedData, lastUserMsg, isFirst, true, false); // suppress audio = true, save to local = false
+                    } catch(e) {
+                        console.error("Gagal me-render data history", e);
+                    }
+                }
+            });
+        }
+
+        function getRandomTopic() { return topicPool[Math.floor(Math.random() * topicPool.length)]; }
+
+        function initSession() {
+            if(!apiKey) return;
+            chatHistory = [];
+            pendingRepeatSentence = null;
+            document.getElementById("chat-container").innerHTML = "";
+            let promptInitial = `Start an English speaking practice session immediately. Topic: ${getRandomTopic()}. Ask me an engaging, open-ended question to kick off the conversation. Do not ask how I am. Jump straight into the topic.`;
+            sendToGemini(promptInitial, true, true);
+        }
+
+        function saveToLocal() {
+            // [PERBAIKAN 2]: Hanya menyimpan objek array chatHistory (Data-Driven), tidak lagi menyimpan HTML murni.
+            localStorage.setItem("chatHistory", JSON.stringify(chatHistory));
+        }
+
+        function clearHistory() {
+            if(confirm("Hapus semua riwayat obrolan dan mulai topik baru?")) {
+                localStorage.removeItem("chatHistory");
+                initSession();
+            }
+        }
+
+        async function requestWakeLock() {
+            try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (err) {}
+        }
+        function releaseWakeLock() {
+            if (wakeLock !== null) { wakeLock.release(); wakeLock = null; }
+        }
+
+        function toggleHandsFree(checkbox) {
+            isHandsFree = checkbox.checked;
+            const lockBtn = document.getElementById("lock-screen-btn");
+            unlockAudio();
+
+            if (isHandsFree) {
+                requestWakeLock();
+                lockBtn.style.display = "block";
+                document.getElementById("status").innerText = "Mode Hands-Free aktif. Bicara sekarang...";
+                if(!isRecording) startRecording();
+            } else {
+                releaseWakeLock();
+                lockBtn.style.display = "none";
+                deactivatePocketLock();
+                if(isRecording) stopRecording();
+            }
+        }
+
+        function unlockAudio() {
+            if ('speechSynthesis' in window) {
+                let dummy = new SpeechSynthesisUtterance('');
+                window.speechSynthesis.speak(dummy);
+            }
+        }
+
+        function activatePocketLock() { document.getElementById("pocket-lock-overlay").classList.add("active"); }
+        function deactivatePocketLock() { document.getElementById("pocket-lock-overlay").classList.remove("active"); }
+
+        function handleOverlayClick() {
+            clickCount++;
+            if (clickCount === 1) {
+                clickTimer = setTimeout(() => { clickCount = 0; }, 800);
+            } else if (clickCount === 3) {
+                clearTimeout(clickTimer);
+                clickCount = 0;
+                deactivatePocketLock();
+            }
+        }
+
+        // [PERBAIKAN 3]: Regex manipulasi agresif dihapus. Hanya membersihkan multiple spasi agar grammar tidak terpotong.
+        function cleanDuplicatedSpeech(text) {
+            if (!text) return "";
+            return text.trim().replace(/\s+/g, ' '); 
+        }
+
+        if (window.SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.lang = 'en-US';
+            recognition.continuous = false;
+            recognition.interimResults = true;
+            
+            recognition.onresult = function(event) {
+                let finalTranscript = "";
+                let interimTranscript = "";
+                
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    let chunk = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        finalTranscript += chunk;
+                    } else {
+                        interimTranscript = chunk;
+                    }
+                }
+                
+                let transcript = finalTranscript + interimTranscript;
+                let displayString = cleanDuplicatedSpeech(transcript);
+                
+                if (displayString) {
+                    document.getElementById("text-input").value = displayString;
+                }
+
+                clearTimeout(speechTimeout);
+                
+                if (displayString !== "") {
+                    document.getElementById("status").innerText = "Mendengarkan... (Diam 2.5 detik untuk kirim)";
+                    
+                    speechTimeout = setTimeout(() => {
+                        isProcessing = true;
+                        recognition.stop();
+                        
+                        let textToSend = cleanDuplicatedSpeech(document.getElementById("text-input").value);
+                        document.getElementById("text-input").value = "";
+                        
+                        if (textToSend) {
+                            appendUserMessage(textToSend);
+                            sendToGemini(textToSend);
+                        }
+                    }, 2500); 
+                }
+            };
+            
+            recognition.onerror = function(event) {
+                if(event.error !== 'no-speech') {
+                    stopRecordingUI();
+                    if(isHandsFree) setTimeout(startRecording, 1500);
+                }
+            };
+            
+            recognition.onend = function() {
+                if (isHandsFree && !isProcessing) {
+                    setTimeout(() => { try { recognition.start(); } catch(e){} }, 400); 
+                } else {
+                    stopRecordingUI();
+                }
+            };
+        }
+
+        function startRecording() {
+            if(!recognition || isRecording) return;
+            try {
+                document.getElementById("text-input").value = "";
+                recognition.start();
+                isRecording = true;
+                isProcessing = false; 
+                document.getElementById("mic-btn").classList.add("recording");
+                document.getElementById("status").innerText = "Mendengarkan suara...";
+            } catch(e){}
+        }
+
+        function stopRecording() {
+            if(!recognition || !isRecording) return;
+            clearTimeout(speechTimeout);
+            isProcessing = true; 
+            recognition.stop();
+            stopRecordingUI();
+        }
+
+        function toggleListening() {
+            if(!apiKey) { toggleSettingsModal(); return; }
+            if(!recognition) return;
+            unlockAudio();
+            if (!isRecording) startRecording(); else stopRecording();
+        }
+
+        function stopRecordingUI() {
+            isRecording = false;
+            document.getElementById("mic-btn").classList.remove("recording");
+            document.getElementById("status").innerText = isHandsFree ? "Mode Hands-Free (Siap mendengarkan...)" : "Pilih mik untuk bicara, atau ketik pesan...";
+        }
+
+        function handleEnter(e) { if(e.key === 'Enter') sendText(); }
+
+        function sendText() {
+            const input = document.getElementById("text-input");
+            const sendBtn = document.getElementById("send-btn");
+            let text = input.value.trim();
+            if(!text) return;
+            if(!apiKey) { toggleSettingsModal(); return; }
+
+            unlockAudio();
+            clearTimeout(speechTimeout);
+            isProcessing = true;
+            if(isRecording) recognition.stop();
+
+            text = cleanDuplicatedSpeech(text);
+
+            input.value = "";
+            sendBtn.disabled = true;
+            appendUserMessage(text);
+            sendToGemini(text).finally(() => { sendBtn.disabled = false; });
+        }
+
+        function appendUserMessage(text, shouldSave = true) {
+            const chatContainer = document.getElementById("chat-container");
+            const msgDiv = document.createElement("div");
+            msgDiv.className = `message user-msg`;
+            msgDiv.innerText = text;
+            chatContainer.appendChild(msgDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function appendAIMessage(dataObj, userText, isFirstMessage = false, shouldSuppressAudio = false, shouldSave = true) {
+            const chatContainer = document.getElementById("chat-container");
+            const msgDiv = document.createElement("div");
+            msgDiv.className = `message ai-msg`;
+
+            let headerHTML = "";
+            if (!isFirstMessage) {
+                let scoreClass = dataObj.score >= 80 ? 'score-good' : 'score-avg';
+                headerHTML = `<div class="score-badge ${scoreClass}">🎯 Skor Bahasa Inggrismu: ${dataObj.score}/100</div><br>`;
+            }
+            
+            let repeatHTML = "";
+            if (dataObj.requires_repeat && dataObj.better_version) {
+                pendingRepeatSentence = dataObj.better_version;
+                repeatHTML = `<div class="repeat-box">🗣️ <b>Ucapkan Ulang:</b> "${dataObj.better_version}"</div>`;
+            } else {
+                pendingRepeatSentence = null;
+            }
+
+            let correctionHTML = "";
+            if(dataObj.correction && dataObj.correction.toLowerCase() !== "perfect") {
+                correctionHTML = `<div class="correction-box">💡 <b>Koreksi:</b> ${dataObj.correction}</div>`;
+            }
+
+            msgDiv.innerHTML = `${headerHTML}<b>${dataObj.reply}</b>${repeatHTML}${correctionHTML}`;
+
+            if (!isFirstMessage) {
+                const btn = document.createElement("button");
+                btn.className = "vocab-btn";
+                btn.innerHTML = "💾 Simpan ke Flashcard Sheets";
+                btn.onclick = () => saveToGoogleSheets(userText, dataObj.correction || dataObj.better_version, dataObj.reply, btn);
+                msgDiv.appendChild(document.createElement("br"));
+                msgDiv.appendChild(btn);
+            }
+
+            chatContainer.appendChild(msgDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            
+            if (shouldSave) saveToLocal(); 
+            
+            if (!shouldSuppressAudio) {
+                let speechContent = dataObj.reply;
+                if (dataObj.requires_repeat && dataObj.better_version) {
+                    speechContent += " Please repeat after me: " + dataObj.better_version;
+                }
+                speakText(speechContent);
+            } else {
+                document.getElementById("status").innerText = "Pilih mik untuk bicara, atau ketik pesan...";
+            }
+        }
+
+        async function sendToGemini(promptText, isFirstMessage = false, isInitialStartup = false) {
+            if(!apiKey) { toggleSettingsModal(); return; }
+            document.getElementById("status").innerText = "AI sedang berpikir...";
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key=${apiKey}`;
+
+            const systemInstruction = `You are a friendly, conversational, and empathetic English speaking partner. Target User Level: ${userEnglishLevel}.
+Your goal is to make the user comfortable speaking English. Act like a supportive friend, not a strict teacher.
+
+CRITICAL INSTRUCTIONS:
+1. CONVERSATIONAL FLOW: Always respond naturally. Show emotion, empathy, or excitement (use emojis occasionally). Always end your reply with an engaging follow-up question to keep the conversation going.
+2. TOLERANCE FOR MINOR ERRORS: Ignore minor grammatical mistakes or spoken artifacts (like stuttering). Only correct MAJOR errors that make the sentence completely misunderstood.
+3. GENTLE CORRECTION: If a major error occurs, set "requires_repeat" to true, provide the natural way to say it in "better_version".
+4. EXCEPTION: If the user asks for help or translation (e.g., "Apa artinya?"), answer them directly and warmly.
+
+Respond ONLY with a valid JSON object in this exact format:
+{
+  "reply": "Your conversational response and follow-up question",
+  "score": (Number 1-100 evaluating their fluency and effort),
+  "requires_repeat": (true ONLY for severe errors, otherwise false),
+  "better_version": "The natural native-like sentence (or null if false)",
+  "correction": "A very brief, friendly explanation of the error, or 'Perfect' if no major errors"
+}`;
+
+            let contextText = promptText;
+            if (pendingRepeatSentence) {
+                contextText = `[SYSTEM NOTE: The user is currently in a drill and needs to repeat: "${pendingRepeatSentence}". The user just said: "${promptText}". If they are asking for help/translation, answer them but keep the drill active. If they attempted the sentence, evaluate it.]`;
+            }
+
+            let currentContents = [...chatHistory, { role: "user", parts: [{ text: contextText }] }];
+
+            const payload = {
+                systemInstruction: { parts: [{text: systemInstruction}] },
+                contents: currentContents,
+                generationConfig: { responseMimeType: "application/json" }
+            };
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 15000); 
+
+            try {
+                const response = await fetch(url, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+                const data = await response.json();
+
+                if (data.error) {
+                    document.getElementById("status").innerText = `Error Server: ${data.error.message}`;
+                    return;
+                }
+
+                if (data.candidates && data.candidates.length > 0) {
+                    const aiRawText = data.candidates[0].content.parts[0].text;
+                    let parsedData;
+                    
+                    try { 
+                        let cleanJson = aiRawText.replace(/```json/gi, '').replace(/```/g, '').trim();
+                        parsedData = JSON.parse(cleanJson); 
+                    } 
+                    catch (parseError) { 
+                        // [PERBAIKAN 4]: Penanganan error yang lebih elegan, me-reset aplikasi tanpa macet.
+                        document.getElementById("status").innerText = "❌ AI membalas format yang keliru. Silakan kirim ulang pesanmu."; 
+                        isProcessing = false;
+                        if (isHandsFree) setTimeout(startRecording, 2500);
+                        return; // Berhenti di sini, biarkan user mencoba lagi, tidak dimasukkan ke riwayat.
+                    }
+
+                    chatHistory.push({ role: "user", parts: [{ text: contextText }] });
+                    chatHistory.push({ role: "model", parts: [{ text: aiRawText }] });
+
+                    if (chatHistory.length > 20) {
+                        chatHistory = chatHistory.slice(chatHistory.length - 20);
+                    }
+
+                    appendAIMessage(parsedData, promptText, isFirstMessage, isInitialStartup, true);
+                } else {
+                    document.getElementById("status").innerText = "Gagal memuat respons (Format kosong).";
+                }
+            } catch (error) {
+                clearTimeout(timeoutId);
+                document.getElementById("status").innerText = "Error koneksi internet.";
+                isProcessing = false;
+                if(isHandsFree) setTimeout(startRecording, 2000);
+            }
+        }
+
+        async function speakText(text) {
+            let cleanTextForSpeech = text.replace(/[*_]/g, '');
+
+            if (elevenLabsApiKey) {
+                try {
+                    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+                        method: 'POST',
+                        headers: {
+                            'accept': 'audio/mpeg',
+                            'xi-api-key': elevenLabsApiKey,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            text: cleanTextForSpeech,
+                            model_id: "eleven_monolingual_v1",
+                            voice_settings: { stability: 0.5, similarity_boost: 0.5 }
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        const blob = await response.blob();
+                        const audio = new Audio(URL.createObjectURL(blob));
+                        audio.onended = function() {
+                            if (isHandsFree) setTimeout(() => { startRecording(); }, 500);
+                        };
+                        audio.play();
+                        return; 
+                    }
+                } catch (e) {
+                    console.error("ElevenLabs error, fallback ke suara sistem", e);
+                }
+            }
+
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                let utterance = new SpeechSynthesisUtterance(cleanTextForSpeech);
+                utterance.lang = 'en-US';
+                utterance.rate = 0.9;
+                
+                utterance.onend = function() {
+                    if (isHandsFree) setTimeout(() => { startRecording(); }, 500);
+                };
+
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        async function saveToGoogleSheets(userSaid, correction, aiReply, btnElement) {
+            if(!sheetAppsScriptUrl) {
+                alert("Kamu belum memasukkan URL Google Apps Script di Menu Pengaturan (⚙️)!");
+                return;
+            }
+            btnElement.innerText = "⏳ Menyimpan...";
+            btnElement.disabled = true;
+
+            try {
+                const response = await fetch(sheetAppsScriptUrl, {
+                    method: "POST",
+                    // UBAH BAGIAN HEADERS DI BAWAH INI MENJADI TEXT/PLAIN
+                    headers: { "Content-Type": "text/plain;charset=utf-8" },
+                    body: JSON.stringify({ original: userSaid, correction: correction, reply: aiReply })
+                });
+
+                if (response.ok || response.type === 'opaque') {
+                    btnElement.innerText = "✅ Tersimpan!";
+                    btnElement.style.background = "#10b981";
+                } else {
+                    throw new Error("Respon server gagal");
+                }
+            } catch (e) {
+                console.error(e);
+                btnElement.innerText = "❌ Gagal Menyimpan";
+                btnElement.style.background = "#f43f5e";
+                btnElement.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
